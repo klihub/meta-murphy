@@ -1,0 +1,5 @@
+libuv@openembedded-layer
+libwebsockets@openembedded-layer
+lua@openembedded-layer
+murphy@murphy
+pulseaudio-module-murphy-ivi@murphy

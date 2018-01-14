@@ -1,0 +1,158 @@
+*** lua-5.3.4/Makefile.orig	2018-01-15 14:08:00.656366137 +0200
+--- lua-5.3.4/Makefile	2018-01-15 14:08:07.432366227 +0200
+***************
+*** 42,47 ****
+--- 42,48 ----
+  TO_BIN= lua luac
+  TO_INC= lua.h luaconf.h lualib.h lauxlib.h lua.hpp
+  TO_LIB= liblua.a
++ TO_SOLIB=liblua.so.$(V)
+  TO_MAN= lua.1 luac.1
+  
+  # Lua version and release.
+***************
+*** 52,58 ****
+  all:	$(PLAT)
+  
+  $(PLATS) clean:
+! 	cd src && $(MAKE) $@
+  
+  test:	dummy
+  	src/lua -v
+--- 53,59 ----
+  all:	$(PLAT)
+  
+  $(PLATS) clean:
+! 	cd src && $(MAKE) V=$(V) R=$(R) $@
+  
+  test:	dummy
+  	src/lua -v
+***************
+*** 61,73 ****
+  	cd src && $(MKDIR) $(INSTALL_BIN) $(INSTALL_INC) $(INSTALL_LIB) $(INSTALL_MAN) $(INSTALL_LMOD) $(INSTALL_CMOD)
+  	cd src && $(INSTALL_EXEC) $(TO_BIN) $(INSTALL_BIN)
+  	cd src && $(INSTALL_DATA) $(TO_INC) $(INSTALL_INC)
+! 	cd src && $(INSTALL_DATA) $(TO_LIB) $(INSTALL_LIB)
+  	cd doc && $(INSTALL_DATA) $(TO_MAN) $(INSTALL_MAN)
+  
+  uninstall:
+  	cd src && cd $(INSTALL_BIN) && $(RM) $(TO_BIN)
+  	cd src && cd $(INSTALL_INC) && $(RM) $(TO_INC)
+! 	cd src && cd $(INSTALL_LIB) && $(RM) $(TO_LIB)
+  	cd doc && cd $(INSTALL_MAN) && $(RM) $(TO_MAN)
+  
+  local:
+--- 62,74 ----
+  	cd src && $(MKDIR) $(INSTALL_BIN) $(INSTALL_INC) $(INSTALL_LIB) $(INSTALL_MAN) $(INSTALL_LMOD) $(INSTALL_CMOD)
+  	cd src && $(INSTALL_EXEC) $(TO_BIN) $(INSTALL_BIN)
+  	cd src && $(INSTALL_DATA) $(TO_INC) $(INSTALL_INC)
+! 	cd src && $(INSTALL_EXEC) $(TO_SOLIB) $(INSTALL_LIB) && ln -sf $(TO_SOLIB) $(INSTALL_LIB)/liblua.so
+  	cd doc && $(INSTALL_DATA) $(TO_MAN) $(INSTALL_MAN)
+  
+  uninstall:
+  	cd src && cd $(INSTALL_BIN) && $(RM) $(TO_BIN)
+  	cd src && cd $(INSTALL_INC) && $(RM) $(TO_INC)
+! 	cd src && cd $(INSTALL_LIB) && $(RM) $(TO_SOLIB) liblua.so
+  	cd doc && cd $(INSTALL_MAN) && $(RM) $(TO_MAN)
+  
+  local:
+*** lua-5.3.4/src/Makefile.orig	2018-01-15 14:08:03.360366173 +0200
+--- lua-5.3.4/src/Makefile	2018-01-15 14:08:07.432366227 +0200
+***************
+*** 36,55 ****
+  	lmathlib.o loslib.o lstrlib.o ltablib.o lutf8lib.o loadlib.o linit.o
+  BASE_O= $(CORE_O) $(LIB_O) $(MYOBJS)
+  
+  LUA_T=	lua
+  LUA_O=	lua.o
+  
+  LUAC_T=	luac
+  LUAC_O=	luac.o
+  
+! ALL_O= $(BASE_O) $(LUA_O) $(LUAC_O)
+! ALL_T= $(LUA_A) $(LUA_T) $(LUAC_T)
+  ALL_A= $(LUA_A)
+  
+  # Targets start here.
+  default: $(PLAT)
+  
+! all:	$(ALL_T)
+  
+  o:	$(ALL_O)
+  
+--- 36,59 ----
+  	lmathlib.o loslib.o lstrlib.o ltablib.o lutf8lib.o loadlib.o linit.o
+  BASE_O= $(CORE_O) $(LIB_O) $(MYOBJS)
+  
++ LUA_SO= liblua.so
++ BASE_SO=$(BASE_O:.o=.shared.o)
++ 
+  LUA_T=	lua
+  LUA_O=	lua.o
+  
+  LUAC_T=	luac
+  LUAC_O=	luac.o
+  
+! ALL_O= $(BASE_O) $(LUA_O) $(LUAC_O) $(BASE_SO)
+! ALL_T= $(LUA_SO) $(LUA_T) $(LUAC_T)
+  ALL_A= $(LUA_A)
++ ALL_SO= $(LUA_SO)
+  
+  # Targets start here.
+  default: $(PLAT)
+  
+! all:	$(ALL_T) $(ALL_SO)
+  
+  o:	$(ALL_O)
+  
+***************
+*** 59,69 ****
+  	$(AR) $@ $(BASE_O)
+  	$(RANLIB) $@
+  
+! $(LUA_T): $(LUA_O) $(LUA_A)
+! 	$(CC) -o $@ $(LDFLAGS) $(LUA_O) $(LUA_A) $(LIBS)
+  
+! $(LUAC_T): $(LUAC_O) $(LUA_A)
+! 	$(CC) -o $@ $(LDFLAGS) $(LUAC_O) $(LUA_A) $(LIBS)
+  
+  clean:
+  	$(RM) $(ALL_T) $(ALL_O)
+--- 63,80 ----
+  	$(AR) $@ $(BASE_O)
+  	$(RANLIB) $@
+  
+! $(LUA_T): $(LUA_O) $(LUA_SO)
+! 	$(CC) -o $@ $(LDFLAGS) $(LUA_O) -L. -llua $(LIBS)
+! 
+! $(LUAC_T): $(LUAC_O) $(LUA_SO)
+! 	$(CC) -o $@ $(LDFLAGS) $(LUAC_O) -L. -llua $(LIBS)
+! 
+! $(LUA_SO): $(BASE_SO)
+! 	$(CC) -o $(LUA_SO).$(V) -shared -Wl,-soname,$(LUA_SO).$(V) $(BASE_SO) $(SYSLDFLAGS) $(SYSLIBS) -lm -ldl
+! 	ln -sf $(LUA_SO).$(V) $(LUA_SO)
+  
+! %.shared.o: %.c
+! 	$(CC) -fPIC $(CFLAGS) $(SYSCFLAGS) $(MYCFLAGS) -c $< -o $@
+  
+  clean:
+  	$(RM) $(ALL_T) $(ALL_O)
+*** lua-5.3.4/src/luaconf.h.orig	2018-01-15 14:08:47.223366756 +0200
+--- lua-5.3.4/src/luaconf.h	2018-01-15 14:11:12.500368685 +0200
+***************
+*** 277,283 ****
+  */
+  #if defined(__GNUC__) && ((__GNUC__*100 + __GNUC_MINOR__) >= 302) && \
+      defined(__ELF__)		/* { */
+! #define LUAI_FUNC	__attribute__((visibility("hidden"))) extern
+  #else				/* }{ */
+  #define LUAI_FUNC	extern
+  #endif				/* } */
+--- 277,283 ----
+  */
+  #if defined(__GNUC__) && ((__GNUC__*100 + __GNUC_MINOR__) >= 302) && \
+      defined(__ELF__)		/* { */
+! #define LUAI_FUNC	/*__attribute__((visibility("hidden")))*/ extern
+  #else				/* }{ */
+  #define LUAI_FUNC	extern
+  #endif				/* } */
