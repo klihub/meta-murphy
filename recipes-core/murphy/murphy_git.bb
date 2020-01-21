@@ -9,7 +9,7 @@ PV = "2018.01"
 SRC_URI = " \
     git://github.com/klihub/murphy.git;protocol=https \
 "
-SRCREV = "3eb958bb388dd93fd85cc0be378e4215a131ab70"
+SRCREV = "7d918fcc4ff5685115eda25eed9c6a934a7a427d"
 
 S = "${WORKDIR}/git"
 
